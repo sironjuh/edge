@@ -1,7 +1,12 @@
 (ns clj.new.edge-app-template
-  (:require [clj.new.templates :refer [renderer project-name name-to-path ->files
-                                       multi-segment sanitize-ns
-                                       *force?* *dir*]]))
+  (:require
+    [clj.new.templates :refer [renderer project-name name-to-path ->files
+                               multi-segment sanitize-ns
+                               *force?* *dir*]]
+    [clojure.java.io :as io])
+  (:import
+    [java.nio.file Files Paths]
+    [java.nio.file.attribute FileAttribute]))
 
 (def render (renderer "app.template"))
 
@@ -24,7 +29,7 @@
    "reframe" {:description "Configure skeleton reframe structure, implies --cljs"}
    "help" {:description "Show help"}})
 
-(def flags-opts (set (map #(str "--" %) (keys supported-flags))))
+(def flags-opts (set (map #(str "--" %) (conj (keys supported-flags) "no-web"))))
 
 ;;The following functions involving the flags validation are taken from:
 ;;https://github.com/bhauman/figwheel-main-template/blob/master/src/leiningen/new/figwheel_main.clj
@@ -84,6 +89,19 @@
   (doseq [example ["acme/api" "acme/dashboard --cljs" "acme/radar --sass --cljs"]]
     (println "  bin/app" example)))
 
+(defn symlink
+  [link-name destination]
+  (let [dest-path (Paths/get *dir* (into-array [destination]))]
+    (io/make-parents (.toFile dest-path))
+    (Files/createSymbolicLink
+      dest-path
+      (.relativize (.getParent dest-path)
+                   (Paths/get *dir*
+                              (into-array
+                                ["../lib/edge-app-template/links/"
+                                 link-name])))
+      (into-array FileAttribute []))))
+
 (defn edge-app-template
   "FIXME: write documentation"
   [name & opts]
@@ -104,9 +122,11 @@
         (let [cljs? (contains? parsed-opts :cljs)
               sass? (contains? parsed-opts :sass)
               reframe? (contains? parsed-opts :reframe)
+              web? (not (contains? parsed-opts :no-web))
               data {:name (project-name name)
                     :sanitized (name-to-path name)
                     :root-ns (multi-segment (sanitize-ns name))
+                    :web web?
                     :sass sass?
                     :cljs (or cljs? reframe?)
                     :reframe reframe?
@@ -118,32 +138,33 @@
           (println (str "Generating fresh 'clj new' edge.app-template project into " *dir* "."))
           (->files data
                    ["deps.edn" (render "deps.edn" data)]
-                   ["src/{{sanitized}}/foo.clj" (render "foo.clj" data)]
+                   ["src/{{sanitized}}/core.clj" (render "core.clj" data)]
                    ["src/config.edn" (render "config.edn" data)]
                    ["dev/dev.clj" (render "dev.clj" data)]
                    ["dev/log_dev_app.properties" (render "log_dev_app.properties" data)]
-                   [".dir-locals.el" (render "dir-locals.el" data)])
-          (binding [*force?* true]
-            (when (:kick data)
-              (->files data
-                       ["src/index.html" (render "index.html" data)]
-                       ["target/dev/.gitkeep" ""]
-                       ["target/prod/.gitkeep" ""]))
-            (if (:sass data)
-              (->files data
-                       ["src/{{name}}.scss" (render "app.css" data)])
-              (->files data
+                   [".dir-locals.el" (render "dir-locals.el" data)]
+                   (when (:kick data) ["src/index.html" (render "index.html" data)])
+                   (when (:kick data) ["target/dev/.gitkeep" ""])
+                   (when (:kick data) ["target/prod/.gitkeep" ""])
+                   (when web?
+                     (if (:sass data)
+                       ["src/{{name}}.scss" (render "app.css" data)]
                        ["src/public/{{name}}.css" (render "app.css" data)]))
-            (when (:cljs data)
-              (->files data
-                       ["src/{{sanitized}}/frontend/main.cljs"
-                        (render (cond
-                                  reframe? "reframe/main.cljs"
-                                  cljs? "main.cljs")
-                                data)]))
-            (when (:reframe data)
-              (->files data
-                       ["src/{{sanitized}}/frontend/views.cljs" (render "reframe/views.cljs" data)]
-                       ["src/{{sanitized}}/frontend/db.cljs" (render "reframe/db.cljs" data)]
-                       ["src/{{sanitized}}/frontend/handlers.cljs" (render "reframe/handlers.cljs" data)]
-                       ["src/{{sanitized}}/frontend/subs.cljs" (render "reframe/subs.cljs" data)]))))))))
+
+                   (when (:cljs data)
+                     ["src/{{sanitized}}/frontend/main.cljs"
+                      (render (cond
+                                reframe? "reframe/main.cljs"
+                                cljs? "main.cljs")
+                              data)])
+
+                   (when (:reframe data)
+                     ["src/{{sanitized}}/frontend/views.cljs" (render "reframe/views.cljs" data)])
+                   (when (:reframe data)
+                     ["src/{{sanitized}}/frontend/db.cljs" (render "reframe/db.cljs" data)])
+                   (when (:reframe data)
+                     ["src/{{sanitized}}/frontend/handlers.cljs" (render "reframe/handlers.cljs" data)])
+                   (when (:reframe data)
+                     ["src/{{sanitized}}/frontend/subs.cljs" (render "reframe/subs.cljs" data)]))
+          (when (:cljs data)
+            (symlink "cljs_calva_settings.json" ".vscode/settings.json")))))))

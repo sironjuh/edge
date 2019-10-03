@@ -8,3 +8,6 @@
 # pack'd output
 /*.jar
 **/*.jar
+
+**/.vscode
+**/.clj-kondo/.cache

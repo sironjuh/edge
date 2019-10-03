@@ -6,7 +6,6 @@
    [clojure.java.classpath :refer [classpath-directories]]
    [io.aviso.ansi]
    [integrant.repl.state]
-   [io.aviso.ansi]
    [spyscope.core]))
 
 ;; Work around TNS-45.  This used to be fixed by using a forked version of tns,
@@ -28,7 +27,7 @@
 
 (let [lock (Object.)]
   (defn dev
-    "Call this to launch the dev system"
+    "Call this to switch to the dev namespace."
     []
     (println "[Edge] Loading Clojure code, please wait...")
     (locking lock

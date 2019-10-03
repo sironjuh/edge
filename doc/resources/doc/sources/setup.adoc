@@ -29,7 +29,7 @@ Once you have your repository, you can add Edge as a remote, and incorporate it 
 [source,shell]
 ----
 acme$ git remote add edge https://github.com/juxt/edge.git
-acme$ git pull edge master
+acme$ git pull --allow-unrelated-histories --no-rebase edge master
 ----
 
 == Add a remote later (optional)
@@ -50,7 +50,7 @@ acme$ git push -u origin master
 With your new project created, you're ready to create an app.
 Apps are deps.edn projects within Edge which are intended to be run as a server.
 
-From the root of the repo, run the `./bin/app` script.
+From the root of the repo, run the `./bin/app` appended with your project name.
 It can be run with an optional flags which add support for Sass or Clojurescript, these are `--sass` and `--cljs` respectively.
 
 [NOTE]
@@ -62,6 +62,12 @@ If you're unsure, use your company name at work, or your github username for hob
 There's a low chance of conflicts in an application.
 
 The project namespace will determine the Clojure namespaces within your application.
+====
+
+[NOTE]
+====
+The below commands will create a folder based on your project name.
+If you don't like the folder name, you can safely rename it (e.g. via `mv`) without any adverse affects.
 ====
 
 [source,shell]
